@@ -1,0 +1,281 @@
+# PAPEL
+
+Você é um especialista sênior em visualização de dados e UI/UX design, com expertise comprovada em dashboards executivos de nível profissional usando HTML, CSS e JavaScript.
+
+Seu objetivo: criar uma aplicação web moderna, altamente visual, elegante e responsiva para gerenciamento agrícola de fertilização de parreiras de uva niágara.
+
+---
+
+# REQUISITO DE ARQUITETURA
+
+O sistema DEVE ser entregue como uma **SPA (Single Page Application) em um único arquivo HTML autocontido**, com as seguintes restrições:
+
+- todo CSS dentro de `<style>`
+- todo JavaScript dentro de `<script>`
+- bibliotecas externas exclusivamente via CDN
+- nenhum backend, build process, framework com bundler, ou arquivos auxiliares locais
+- funcional offline após o primeiro carregamento das CDNs
+
+Entregar como artifact único, renderizável diretamente.
+
+---
+
+# CONTEXTO DO NEGÓCIO
+
+**Granja Coemitanga** — produtora de uvas niágara.
+
+**Estrutura produtiva:**
+- 62 ruas numeradas de **2 a 63** (inclusivo)
+- 70 plantas por rua
+- Total: 4.340 plantas
+
+As aplicações semanais de fertilizantes são determinadas pela **data** e pelo **tipo de poda** de cada rua.
+
+---
+
+# REGRAS DE NEGÓCIO — Cronograma de Adubação
+
+## PODA LONGA (produção)
+
+| Dias após poda | Fertilizantes por planta |
+|---|---|
+| 10 | 100g Calcinit |
+| 30 | 70g Calcinit + 100g TrichoPhos |
+| 45 | 50g Calcinit |
+
+## PODA CURTA (formação)
+
+| Dias após poda | Fertilizantes por planta |
+|---|---|
+| 10 | 100g Calcinit |
+
+## Cálculos derivados
+
+- **Quantidade total por aplicação na rua** = quantidade por planta × 70
+- **Quantidade total semanal** = soma de todas as aplicações programadas para aquela semana
+- Apresentar quantidades em **kg** quando > 1000g, senão em **g** (formato pt-BR, vírgula decimal)
+
+---
+
+# ESPECIFICAÇÃO DA PLANILHA DE ENTRADA
+
+A aplicação deve aceitar upload de planilha Excel (`.xlsx`, `.xls`) ou CSV com as seguintes colunas (a primeira linha é cabeçalho):
+
+| Coluna       | Tipo    | Obrigatória | Valores aceitos                                           |
+|--------------|---------|-------------|-----------------------------------------------------------|
+| Rua          | número  | sim         | inteiro entre 2 e 63                                      |
+| Data da Poda | data    | sim         | formato dd/mm/aaaa ou aaaa-mm-dd                          |
+| Tipo de Poda | texto   | sim         | "Longa" ou "Curta" (case-insensitive; aceitar "L"/"C")    |
+
+**Exemplo:**
+
+```
+Rua | Data da Poda | Tipo de Poda
+2   | 15/03/2026   | Longa
+3   | 15/03/2026   | Curta
+4   | 22/03/2026   | Longa
+```
+
+## Validações obrigatórias
+
+Ao processar a planilha, exibir relatório de validação contendo:
+- linhas com rua fora do range 2–63 → ignoradas, com aviso
+- linhas com data inválida → ignoradas, com aviso
+- linhas com tipo de poda desconhecido → ignoradas, com aviso
+- ruas duplicadas (mesma rua com mais de uma poda) → permitido, gerar cronograma para ambas e sinalizar sobreposição
+- coluna obrigatória ausente → bloquear importação com mensagem clara
+
+---
+
+# CONVENÇÕES TEMPORAIS
+
+- **Definição de semana:** segunda a domingo (ISO 8601)
+- **Dias após poda:** dias corridos (não úteis)
+- **Tolerância de status:**
+  - **Pendente:** data da aplicação ≥ hoje
+  - **Próxima:** dentro dos próximos 7 dias
+  - **Vencida:** data da aplicação < hoje E ainda não marcada como concluída
+  - **Concluída:** usuário marcou manualmente
+- **Localização:** datas em pt-BR (dd/mm/aaaa), números com vírgula decimal
+
+---
+
+# PERSISTÊNCIA DE DADOS
+
+Como não há backend:
+
+- Salvar em **localStorage** o estado das aplicações concluídas e a planilha importada
+- Botão "**Exportar dados**" → baixa JSON com cronograma + status
+- Botão "**Importar dados**" → carrega JSON previamente exportado
+- Botão "**Limpar tudo**" → reseta o estado (com confirmação)
+
+---
+
+# FUNCIONALIDADES OBRIGATÓRIAS
+
+## 1. Upload de planilha
+
+- Área de drag-and-drop moderna
+- Feedback visual durante o parsing
+- Relatório pós-importação (linhas válidas, linhas ignoradas, avisos)
+
+## 2. Geração automática do cronograma
+
+Ao importar, calcular para cada rua:
+- todas as datas futuras de aplicação
+- fertilizante e quantidade por planta
+- quantidade total da rua
+- agregações por semana
+
+## 3. Filtro de semana ISO (controle global do dashboard)
+
+Componente **persistente e sempre visível** no topo do dashboard, que define a "semana ativa" usada por KPIs, visualizações e tabela.
+
+**Comportamento:**
+
+- Seletor de semana ISO no formato `aaaa-Snn` (ex.: `2026-S21`) com label legível abaixo: `18/05/2026 – 24/05/2026 • Semana 21`
+- Controles de navegação:
+  - botão **← Semana anterior**
+  - botão **Semana atual** (atalho para a semana ISO de hoje)
+  - botão **Próxima semana →**
+  - dropdown/calendário para saltar para qualquer semana com aplicações programadas
+- Valor inicial ao carregar a planilha: **semana ISO atual**, se houver aplicações nela; caso contrário, a próxima semana com aplicações
+- Indicador visual quando a semana selecionada não possui aplicações: estado vazio elegante ("Nenhuma aplicação programada para esta semana")
+- Persistir a semana selecionada em localStorage entre sessões
+
+**Impacto no dashboard:** todos os KPIs, visualizações sensíveis a período e a tabela operacional devem refletir a semana filtrada. O heatmap das ruas e o gráfico semanal mantêm visão multi-semanas mas **destacam** a semana ativa.
+
+## 4. KPIs executivos (cards superiores)
+
+Todos os KPIs abaixo se referem à **semana filtrada** (não à semana corrente do calendário):
+
+- Total de ruas impactadas na semana
+- Total de plantas impactadas na semana
+- Total de aplicações programadas na semana
+- Total de Calcinit necessário na semana (kg)
+- Total de TrichoPhos necessário na semana (kg)
+- Próxima aplicação dentro da semana (data + nº de ruas) — se a semana já passou, exibir "Semana encerrada"
+
+Adicionar um **card secundário** (menos destacado) com totais acumulados do ciclo inteiro, para referência: total de ruas no cronograma, total de Calcinit do ciclo, total de TrichoPhos do ciclo.
+
+## 5. Visualizações
+
+| Visualização          | Comportamento com o filtro de semana                                       |
+|-----------------------|-----------------------------------------------------------------------------|
+| Calendário operacional| Mês contendo a semana ativa; **linha da semana ativa destacada** com borda/glow |
+| Timeline agrícola     | Mostra todas as ruas; **marcos que caem na semana ativa ficam destacados** |
+| Heatmap das ruas      | Visão de múltiplas semanas; coluna da semana ativa em destaque; ruas impactadas na semana ativa pulsam suavemente |
+| Gráfico semanal       | Chart.js — bar chart empilhado (Calcinit + TrichoPhos) por semana; **barra da semana ativa destacada** com cor distinta |
+| Tabela operacional    | Filtrada pela semana ativa por padrão; com opção de "Ver ciclo inteiro"   |
+
+**Observação técnica:** Chart.js não tem heatmap nativo. Implementar o heatmap das ruas com **grid CSS puro**, não com plugin Chart.js.
+
+## 6. Tabela operacional
+
+Colunas: Rua • Tipo de poda • Data da poda • Data da aplicação • Fertilizante • Quantidade/planta • Quantidade total da rua • Status • Ação (marcar concluída)
+
+- **Escopo padrão:** apenas a semana ativa do filtro global
+- Toggle "Ver ciclo inteiro" para remover o filtro de semana
+- Filtros adicionais: status, fertilizante, tipo de poda
+- Ordenação por qualquer coluna
+- Linha clicável marca/desmarca conclusão
+- Rodapé com **subtotais** da seleção atual (nº de ruas, kg de Calcinit, kg de TrichoPhos)
+
+---
+
+# FLUXO DO USUÁRIO (User Journey)
+
+1. Usuário abre o app → vê tela vazia com call-to-action de upload
+2. Arrasta a planilha → vê preview/validação
+3. Confirma → KPIs e visualizações são populados
+4. Visualiza KPIs da semana atual no topo
+5. Vê a **semana ISO atual** pré-selecionada no filtro global, com todos os KPIs e visualizações refletindo essa semana
+6. Navega entre semanas com os botões ← / → ou seleciona uma semana específica no dropdown para planejar com antecedência
+7. Marca aplicação como concluída → KPIs e indicadores de status atualizam em tempo real
+8. Pode exportar JSON do estado a qualquer momento
+
+---
+
+# DIRETRIZES DE UI/UX
+
+**Inspiração visual:** dashboards SaaS modernos com a polidez de Apple, Stripe, Linear e Notion.
+
+**Estilo:**
+- Dark mode premium
+- Glassmorphism leve (não exagerar)
+- Gradientes sofisticados, sutis
+- Tipografia moderna (Inter ou similar via Google Fonts)
+- Microinterações em hover/click
+- Animações suaves (200–300ms, ease-out)
+- Skeleton loading durante processamento
+- Sombras premium e efeitos glow discretos
+- Indicadores de status com cores semânticas
+
+**Paleta:**
+- Fundo: preto premium / grafite (#0a0e0a, #141914)
+- Superfícies: cinza escuro com leve tom verde (#1a201a)
+- Primária: verde agrícola sofisticado (#2d5a3d)
+- Acento: verde-limão suave (#a8e063)
+- Texto: branco quente / cinza claro
+- Status: verde (concluído), âmbar (próximo), vermelho (vencido)
+
+---
+
+# REQUISITOS NÃO-FUNCIONAIS
+
+- **Responsividade:** funcional em viewport de 360px até 4K
+- **Acessibilidade:** contraste mínimo WCAG AA, navegação por teclado nos controles principais
+- **Performance:** carregamento inicial < 2s em 4G; parsing de até 100 ruas em < 500ms
+- **Idioma:** português brasileiro em toda a interface
+- **Código:** organizado por seções comentadas (UTILS, STATE, PARSER, SCHEDULER, RENDER, EVENTS)
+
+---
+
+# STACK TÉCNICA
+
+- HTML5 + CSS3 + JavaScript Vanilla (ES6+)
+- **Chart.js** (gráficos)
+- **SheetJS / xlsx** (leitura Excel)
+- **Lucide Icons** via CDN (preferir a Font Awesome — mais leve e moderno)
+- **Google Fonts:** Inter ou Geist
+
+---
+
+# ESCOPO — O QUE NÃO FAZER
+
+- Sem login, autenticação ou multi-usuário
+- Sem integração com APIs externas (clima, ERPs etc.)
+- Sem PWA / service worker
+- Sem backend ou banco de dados
+- Sem múltiplas páginas ou rotas
+
+---
+
+# CRITÉRIOS DE ACEITE
+
+A entrega será considerada concluída quando:
+
+- [ ] Upload de planilha Excel funciona via drag-and-drop e clique
+- [ ] Validações da planilha exibem relatório claro
+- [ ] Cronograma é gerado corretamente para podas Longa e Curta
+- [ ] **Filtro de semana ISO está sempre visível e funcional (navegação ←/→, atalho "Semana atual", dropdown de salto)**
+- [ ] **KPIs, calendário, timeline e tabela refletem a semana ativa do filtro**
+- [ ] **Heatmap e gráfico semanal destacam visualmente a semana ativa mantendo a visão multi-semanas**
+- [ ] **Estado vazio elegante quando a semana selecionada não possui aplicações**
+- [ ] **Semana selecionada persiste em localStorage entre sessões**
+- [ ] Todos os KPIs da semana aparecem e atualizam conforme o filtro
+- [ ] As 5 visualizações (calendário, timeline, heatmap, gráfico, tabela) estão funcionais
+- [ ] Status (pendente/próxima/vencida/concluída) calcula corretamente
+- [ ] Marcar aplicação como concluída persiste em localStorage
+- [ ] Export/Import JSON funciona
+- [ ] Layout responsivo em 360px, 768px, 1280px e 1920px
+- [ ] Interface 100% em português pt-BR
+- [ ] Nenhum erro no console em uso normal
+
+---
+
+# RESULTADO ESPERADO
+
+Um produto que pareça um **SaaS agrícola real**, pronto para apresentação executiva e uso operacional pela equipe da granja. O design deve transmitir sofisticação, tecnologia, clareza operacional, confiabilidade e eficiência.
+
+Evite aparência de dashboard genérico. Capriche nos detalhes visuais e nas microinterações.
