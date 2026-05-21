@@ -1055,7 +1055,7 @@ function renderTable(){
   var selC=0,selT=0,selRuas={};rows.forEach(function(r){if(r.fert==='Calcinit')selC+=r.gpRua;else selT+=r.gpRua;selRuas[r.rua]=1;});
   gel('tbl-footer').innerHTML='<span class="fs">'+rows.length+' registro(s) \u00b7 <strong>'+Object.keys(selRuas).length+'</strong> rua(s)</span><span class="fs">Calcinit: <strong>'+fmtQ(selC)+'</strong></span><span class="fs">TrichoPhos: <strong>'+fmtQ(selT)+'</strong></span>';
   gel('tbl-head').querySelectorAll('th[data-col]').forEach(function(th){th.addEventListener('click',function(){var c=th.dataset.col;if(ST.sort.col===c)ST.sort.dir=ST.sort.dir==='asc'?'desc':'asc';else{ST.sort.col=c;ST.sort.dir='asc';}renderTable();});});
-  gel('tbl-body').querySelectorAll('.chk').forEach(function(btn){btn.addEventListener('click',function(e){e.stopPropagation();var id=btn.dataset.id;if(ST.completed[id])delete ST.completed[id];else ST.completed[id]=true;saveState();if(db){db.ref("coemitanga/completed/"+id).set(ST.completed[id]?true:null);}else{renderKPIs();renderCompras();renderTable();renderParreira();}});});
+  gel('tbl-body').querySelectorAll('.chk').forEach(function(btn){btn.addEventListener('click',function(e){e.stopPropagation();var id=btn.dataset.id;if(ST.completed[id])delete ST.completed[id];else ST.completed[id]=true;saveState();if(db){db.ref("coemitanga/completed/"+id).set(ST.completed[id]?true:null);}renderKPIs();renderCompras();renderTable();renderParreira();});});
 }
 
 // VALIDATION REPORT
