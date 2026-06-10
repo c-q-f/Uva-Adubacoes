@@ -96,6 +96,7 @@ Tudo encapsulado em try/catch — falhas silenciosas no `localStorage` (comum em
 - **Exportar** → baixa JSON
 - **Importar** → carrega JSON
 - **Limpar** → reseta estado (com confirmação)
+- **Nova planilha** → Retorna à tela de upload para carregar outro arquivo
 
 ---
 
@@ -105,16 +106,17 @@ Tudo encapsulado em try/catch — falhas silenciosas no `localStorage` (comum em
 - `<label for="file-input">` como dropzone — **NÃO usar `fi.click()` via JS** (bloqueado em sandboxes)
 - Input de arquivo com `position:absolute;width:1px;height:1px;opacity:0;pointer-events:none` (fora da label)
 - Drag-and-drop com feedback visual
+- **Botão secundário** "Carregar dados de exemplo" para preencher a aplicação com dados simulados
 
 ## 2. Filtro de semana ISO (barra fixa no topo)
 - Exibe: código ISO (`2026-S21`), intervalo (`18/05/2026 – 24/05/2026`), número da semana
-- **Ícone de funil** (`<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3">`) ao lado do intervalo abre **dropdown customizado em JS puro** — NÃO usar `<select>` nativo oculto (não funciona em iframes/file://)
-- Dropdown com `min-width:320px; white-space:nowrap` para cada item caber em uma linha
+- **Menu "Jump to Week"** (Ícone ao lado do intervalo) abre **dropdown customizado em JS puro** com todas as semanas com aplicações — NÃO usar `<select>` nativo oculto (não funciona em iframes/file://)
+- Dropdown com `min-width:320px; white-space:nowrap` para cada item caber em uma linha, destacando a semana ativa
 - Botões: ← Anterior · Hoje · Próxima →
-- Filtro de tipo de poda: pills **Todas · Longa · Curta**
+- Filtro de tipo de poda global: pills **Todas · Longa · Curta**
   - Ativo: `background:#a8e063; color:#0a1a0a; border-color:#a8e063; font-weight:600`
   - Inativo: `background:transparent; color:#b8c4b8; border:1px solid rgba(168,224,99,0.2)`
-- O filtro de semana afeta todos os painéis sensíveis; o filtro de tipo de poda afeta todos **exceto os KPIs**
+- O filtro de semana afeta todos os painéis sensíveis; o filtro de tipo de poda é global e afeta **TODOS os painéis**, incluindo KPIs e Mapa da Parreira.
 
 ## 3. KPIs (5 cards em linha única, sem painéis secundários abaixo)
 
